@@ -197,32 +197,40 @@ def filter_candidates(pairs: Iterable[Dict[str, Any]], *, dex: DexClient,
             rows.append(PairRow(now_iso, token_name, symbol, base_addr, pair_addr, float(price), float(ath), pct, float(vol), float(liq), f"{DEX_WEB}/{CHAIN_ID}/{pair_addr}" if pair_addr else f"{DEX_WEB}/{CHAIN_ID}"))
     return rows, stats
 
-def scan_once(*, volume_min: float, volume_max: float, price_threshold_pct: float, liq_min_usd: float,
-              mcap_min: float, mcap_max: float, seeds_from_env: str, max_pages: int, min_seed_len: int,
-              page_delay_s: float, st_api_key: str, use_proxy_poolmax: bool) -> Dict[str, Any]:
+def scan_once(*, volume_min:float, volume_max:float, price_threshold_pct:float, liq_min_usd:float,
+              mcap_min:float, mcap_max:float, seeds_from_env:str, max_pages:int, min_seed_len:int,
+              page_delay_s:float, st_api_key:str, use_proxy_poolmax:bool, debug: bool=False)->Dict[str,Any]:
     import datetime as _dt
-    dex=DexClient()
+    dex=DexClient(); st=STClient(st_api_key) if st_api_key else None
     seeds=_get_seeds(max_pages, seeds_from_env, min_seed_len)
-    fetched=0; pre=[]
-    for i in range(1, len(seeds)+1):
-        try: chunk=fetch_pairs_page(dex,i,seeds)
-        except Exception: chunk=[]
-        fetched+=len(chunk)
+    fetched=0; prefiltered=[]; errors=[]
+    for idx in range(1,len(seeds)+1):
+        seed = seeds[idx-1]
+        try:
+            chunk = fetch_pairs_page(dex, idx, seeds)
+        except Exception as e:
+            chunk = []
+            errors.append({"seed": seed, "page": idx, "error": str(e)})
+        fetched += len(chunk)
         for p in chunk:
-            vol=safe_float(((p.get('volume') or {}).get('h24')))
-            liq=safe_float(((p.get('liquidity') or {}).get('usd')))
+            vol=safe_float(((p.get('volume') or {}).get('h24'))); liq=safe_float(((p.get('liquidity') or {}).get('usd')))
             if vol is None or liq is None: continue
             if vol<volume_min or vol>volume_max: continue
             if liq<liq_min_usd: continue
-            mc=safe_float(p.get('marketCap')) or safe_float(p.get('fdv'))
-            if mc is not None and not (mcap_min<=mc<=mcap_max): continue
-            pre.append(p)
+            inline_mcap = safe_float(p.get('marketCap')) or safe_float(p.get('fdv'))
+            if inline_mcap is not None and not (mcap_min<=inline_mcap<=mcap_max): continue
+            prefiltered.append(p)
         time.sleep(page_delay_s)
-    best=select_best_pair_by_token(pre)
-    now=_dt.datetime.utcnow().replace(microsecond=0).isoformat()+'Z'
-    rows,stats=filter_candidates(best.values(), dex=dex, vol_min=volume_min, vol_max=volume_max,
-                                 pct_threshold=price_threshold_pct, liq_min_usd=liq_min_usd,
-                                 mcap_min=mcap_min, mcap_max=mcap_max, st=None,
-                                 use_proxy_poolmax=use_proxy_poolmax, now_iso=now)
-    stats.update({"search_pairs":fetched,"prefilter":len(pre),"unique_tokens":len(best),"candidates_after_threshold":len(rows)})
-    return {"stats":stats,"rows":[asdict(r) for r in rows],"st_enabled":bool(os.getenv('SOLANATRACKER_API_KEY',''))}
+    best = select_best_pair_by_token(prefiltered)
+    now_iso = _dt.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+    rows,stats = filter_candidates(best.values(), dex=dex, vol_min=volume_min, vol_max=volume_max,
+                                   pct_threshold=price_threshold_pct, liq_min_usd=liq_min_usd,
+                                   mcap_min=mcap_min, mcap_max=mcap_max, st=st,
+                                   use_proxy_poolmax=use_proxy_poolmax, now_iso=now_iso)
+    stats.update({"search_pairs":fetched, "prefilter":len(prefiltered), "unique_tokens":len(best), "candidates_after_threshold":len(rows)})
+    out = {"stats":stats, "rows":[asdict(r) for r in rows], "st_enabled": bool(st_api_key)}
+    if debug:
+        out["errors"] = errors
+        out["used_seeds"] = seeds
+    return out
+
