@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Solana Drops — Web</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
+</head>
+<body class="bg-gray-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100">
+  <div class="max-w-7xl mx-auto p-6">
+    <header class="flex items-center justify-between">
+      <h1 class="text-2xl font-bold tracking-tight">Solana Drops — Web</h1>
+      <a href="https://dexscreener.com" class="text-sm opacity-70 hover:opacity-100" target="_blank" rel="noopener">Powered by Dexscreener</a>
+    </header>
+
+    <section class="mt-6 grid md:grid-cols-3 gap-4">
+      <div class="col-span-2 bg-white dark:bg-slate-800 rounded-2xl shadow p-4">
+        <div class="flex items-center gap-3">
+          <button id="scanBtn" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium disabled:opacity-60 disabled:cursor-not-allowed">
+            🔍 Сканировать сейчас
+          </button>
+          <div id="status" class="text-sm opacity-80"></div>
+        </div>
+        <div class="mt-4 text-sm opacity-70">
+          Фильтры: <span class="font-mono" id="filters"></span>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-slate-800 rounded-2xl shadow p-4">
+        <h2 class="font-semibold mb-2">Состояние</h2>
+        <div id="cfg" class="text-sm space-y-1"></div>
+      </div>
+    </section>
+
+    <section class="mt-6 bg-white dark:bg-slate-800 rounded-2xl shadow p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-semibold">Кандидаты</h2>
+        <input id="search" type="text" placeholder="Фильтр по имени/символу/адресу..." class="px-3 py-2 text-sm rounded-xl bg-slate-100 dark:bg-slate-700 focus:outline-none w-80 max-w-full" />
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm" id="table">
+          <thead class="uppercase text-xs text-slate-500 dark:text-slate-400">
+            <tr>
+              <th class="text-left p-2">timestamp</th>
+              <th class="text-left p-2">token</th>
+              <th class="text-left p-2">symbol</th>
+              <th class="text-left p-2">base</th>
+              <th class="text-left p-2">pair</th>
+              <th class="text-right p-2">priceUsd</th>
+              <th class="text-right p-2">athPrice</th>
+              <th class="text-right p-2">% of ATH</th>
+              <th class="text-right p-2">vol24h</th>
+              <th class="text-right p-2">liqUsd</th>
+              <th class="text-left p-2">link</th>
+            </tr>
+          </thead>
+          <tbody id="tbody" class="divide-y divide-slate-100 dark:divide-slate-700"></tbody>
+        </table>
+      </div>
+      <div id="stats" class="mt-3 text-xs opacity-70"></div>
+    </section>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

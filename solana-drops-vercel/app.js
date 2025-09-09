@@ -1,0 +1,18 @@
+const scanBtn=document.getElementById('scanBtn');const statusEl=document.getElementById('status');const cfgBox=document.getElementById('cfg');const filtersEl=document.getElementById('filters');const tbody=document.getElementById('tbody');const statsEl=document.getElementById('stats');const searchInput=document.getElementById('search');let lastRows=[];function fmtNum(x,d=2){if(x===null||x===undefined)return'';const n=Number(x);if(Math.abs(n)>=1000){return n.toLocaleString(undefined,{maximumFractionDigits:d});}return n.toFixed(d);}function pctClass(p){if(p<=0.5)return'bg-green-600';if(p<=0.7)return'bg-emerald-600';if(p<=0.85)return'bg-yellow-600';return'bg-red-600';}async function loadConfig(){const res=await fetch('/api/config');const cfg=await res.json();cfgBox.innerHTML=`
+    <div>ST fallback: <b>${cfg.SOLANATRACKER_API_KEY?'ENABLED':'disabled'}</b></div>
+    <div>Proxy ATH: <b>${cfg.ATH_FALLBACK_USE_POOLMAX?'ON':'off'}</b></div>
+    <div>Seeds: <span class="font-mono">${cfg.SEARCH_SEEDS.split(',').slice(0,5).join(', ')}</span>…</div>
+    <div>Pages: <span class="font-mono">${cfg.MAX_PAGES}</span></div>
+  `;filtersEl.textContent=`VOL[${fmtNum(cfg.VOLUME_MIN,0)}, ${fmtNum(cfg.VOLUME_MAX,0)}], `+`MCAP[${fmtNum(cfg.MCAP_MIN,0)}, ${fmtNum(cfg.MCAP_MAX,0)}], `+`LIQ ≥ ${fmtNum(cfg.LIQ_MIN_USD,0)}, `+`price ≤ ${cfg.PRICE_THRESHOLD_PCT}% ATH`;}function renderRows(rows){const q=searchInput.value.trim().toLowerCase();tbody.innerHTML='';rows.filter(r=>{if(!q)return true;return((r.tokenName||'').toLowerCase().includes(q)||(r.symbol||'').toLowerCase().includes(q)||(r.baseAddress||'').toLowerCase().includes(q)||(r.pairAddress||'').toLowerCase().includes(q));}).forEach(r=>{const tr=document.createElement('tr');tr.className='hover:bg-slate-50 dark:hover:bg-slate-700/50';const pct=Number(r.pctOfAth);tr.innerHTML=`
+        <td class="p-2 whitespace-nowrap">${r.timestamp}</td>
+        <td class="p-2 whitespace-nowrap">${r.tokenName||''}</td>
+        <td class="p-2 whitespace-nowrap font-mono">${r.symbol||''}</td>
+        <td class="p-2 whitespace-nowrap font-mono">${r.baseAddress||''}</td>
+        <td class="p-2 whitespace-nowrap font-mono">${r.pairAddress||''}</td>
+        <td class="p-2 text-right">${fmtNum(r.priceUsd,8)}</td>
+        <td class="p-2 text-right">${fmtNum(r.athPrice,8)}</td>
+        <td class="p-2 text-right"><span class="inline-block px-2 py-0.5 text-white text-xs rounded ${pctClass(pct)}">${(pct*100).toFixed(2)}%</span></td>
+        <td class="p-2 text-right">${fmtNum(r.volumeH24,0)}</td>
+        <td class="p-2 text-right">${fmtNum(r.liquidityUsd,0)}</td>
+        <td class="p-2"><a class="text-indigo-600 hover:underline" href="${r.dexLink}" target="_blank" rel="noopener">dex</a></td>
+      `;tbody.appendChild(tr);});}async function scan(){try{scanBtn.disabled=true;statusEl.textContent='Сканируем…';statsEl.textContent='';tbody.innerHTML='';const t0=performance.now();const res=await fetch('/api/scan',{method:'POST'});const data=await res.json();lastRows=data.rows||[];renderRows(lastRows);const s=data.stats||{};const ms=(performance.now()-t0).toFixed(0);statsEl.textContent=`fetched=${s.search_pairs||0}, prefilter=${s.prefilter||0}, `+`unique=${s.unique_tokens||0}, mcap_ok=${s.mcap_ok||0}, `+`ath_found=${s.ath_found||0}, candidates=${s.candidates_after_threshold||0} `+`(${ms} ms) — ST=${data.st_enabled?'on':'off'}`;statusEl.textContent='Готово.';}catch(err){console.error(err);statusEl.textContent='Ошибка при сканировании (см. консоль).';}finally{scanBtn.disabled=false;}}scanBtn.addEventListener('click',scan);searchInput.addEventListener('input',()=>renderRows(lastRows));loadConfig();
